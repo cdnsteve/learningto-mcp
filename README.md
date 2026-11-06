@@ -75,6 +75,7 @@ a readable message explaining what is missing. They do not fail the whole call.
 | `learningto_get_challenge` | A specific challenge and its starter code | Offline |
 | `learningto_get_learning_path` | The prerequisite graph / skill tree | Offline |
 | `learningto_recommend_next` | Recommended next topics after finishing one | Offline |
+| `learningto_mock_interview` | Interviewer brief plus questions and grading focus for a topic | Offline |
 | `learningto_analyze_code` | Review a solution for correctness and complexity | AI, token |
 | `learningto_get_hint` | Progressive hints at levels 1 to 3 | AI, token |
 | `learningto_explain` | Contextual concept explanation | AI, token |

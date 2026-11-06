@@ -14,7 +14,7 @@ import { topicSummaries, getTopic, getChallenge, buildLearningPath, recommendNex
 const SITE_BASE = "https://learningto.co";
 const AI_BASE_URL = process.env.ALGOVAULT_API_URL ?? `${SITE_BASE}/api`;
 const SESSION_TOKEN = process.env.ALGOVAULT_SESSION_TOKEN;
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.3.0";
 const CATEGORY_LABEL = {
     "data-structures": "Data Structures",
     algorithms: "Algorithms",
@@ -114,6 +114,10 @@ const GenerateProblemInput = z.object({
     difficulty: z.enum(["easy", "medium", "hard"]),
     avoidProblems: z.array(z.string()).optional(),
     focusPatterns: z.array(z.string()).optional(),
+});
+const MockInterviewInput = z.object({
+    topicId: z.string(),
+    count: z.number().int().min(1).max(8).optional().default(5),
 });
 const RecommendNextInput = z.object({
     topicId: z.string(),
@@ -263,6 +267,38 @@ function formatRecommend(topicId) {
         }
     }
     lines.push("", ctaForTopic(topicId));
+    return lines.join("\n");
+}
+function formatMockInterview(topicId, count) {
+    const topic = getTopic(topicId);
+    if (!topic) {
+        return `Topic not found: \`${topicId}\`. Use \`learningto_get_curriculum\` to list valid topic ids.`;
+    }
+    const picked = topic.challenges.slice(0, Math.max(1, Math.min(count, 8)));
+    if (picked.length === 0) {
+        return `No challenges are defined for \`${topicId}\` yet.`;
+    }
+    const lines = [
+        `# Mock interview: ${topic.title}`,
+        "",
+        "Run this as a live interviewer. Ask one question at a time.",
+        "",
+        "Rules for the host model:",
+        "1. Ask the question, then stop and wait for the candidate's answer.",
+        "2. Do not reveal hints or the expected answer before the candidate responds.",
+        "3. After each answer, grade 1 to 5 on correctness, complexity, and communication, quote the weakest sentence, and give one improvement.",
+        "4. Continue to the next question only after the grade.",
+        "5. At the end, summarize the two weakest areas and link the topic page below.",
+        "",
+        `Topic: ${topic.description}`,
+        "",
+    ];
+    picked.forEach((challenge, index) => {
+        lines.push(`## Question ${index + 1}: ${challenge.title} (${challenge.difficulty})`, "", challenge.responsePrompt ?? challenge.description, "", `Grading focus: ${challenge.tags.length > 0 ? challenge.tags.join(", ") : "correctness and complexity"}.`, challenge.grading?.kind === "aiJudge"
+            ? "This is a design/explanation question. Grade the reasoning, tradeoffs, and failure handling, not code."
+            : "Expect working reasoning, a stated complexity, and edge cases.", "");
+    });
+    lines.push(ctaForTopic(topicId));
     return lines.join("\n");
 }
 // ---------------------------------------------------------------------------
@@ -477,6 +513,28 @@ const TOOLS = [
         },
     },
     {
+        name: "learningto_mock_interview",
+        description: "Start a structured mock interview for a topic. Returns an interviewer brief and a set of " +
+            "questions with grading focus, without hints or expected answers. The host model should ask " +
+            "one question at a time, grade each answer, then deliver a summary. Works offline.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                topicId: {
+                    type: "string",
+                    description: "Topic to interview on, for example agents-behavior or rag-systems",
+                },
+                count: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 8,
+                    description: "Number of questions to include (default 5)",
+                },
+            },
+            required: ["topicId"],
+        },
+    },
+    {
         name: "learningto_get_learning_path",
         description: "Retrieve the full prerequisite graph (skill tree) showing which topics must be studied " +
             "before others. Use this to help the user plan a structured study schedule or understand " +
@@ -558,6 +616,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 const parsed = GenerateProblemInput.parse(input);
                 const res = await callAiEndpoint("/generate", parsed);
                 text = res.ok ? JSON.stringify(res.data, null, 2) : aiErrorMessage(res.status, res.data);
+                break;
+            }
+            case "learningto_mock_interview": {
+                const { topicId, count } = MockInterviewInput.parse(input);
+                text = formatMockInterview(topicId, count);
                 break;
             }
             case "learningto_get_learning_path":
