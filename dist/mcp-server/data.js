@@ -5,7 +5,8 @@
  * - app/src/data/curriculum.ts        -> topics + challenges (source of truth)
  * - app/src/data/learningPathNodes.ts -> prerequisite graph (source of truth)
  */
-import { topics, categories } from "../src/data/curriculum.js";
+import { categories } from "../src/data/curriculum.js";
+import { getAllTopics } from "../src/data/topicRegistry.js";
 import { learningPathNodes } from "../src/data/learningPathNodes.js";
 export { categories };
 // ---------------------------------------------------------------------------
@@ -25,7 +26,8 @@ function prerequisitesForTopicId(topicId) {
     }
     return [...prereqTopicIds];
 }
-export const topicSummaries = topics.map((topic) => ({
+const allTopics = getAllTopics();
+export const topicSummaries = allTopics.map((topic) => ({
     id: topic.id,
     title: topic.title,
     category: topic.category,
@@ -43,7 +45,7 @@ export const topicSummaries = topics.map((topic) => ({
     challengeIds: topic.challenges.map((c) => c.id),
     prerequisites: prerequisitesForTopicId(topic.id),
 }));
-const TOPIC_BY_ID = Object.fromEntries(topics.map((t) => [t.id, t]));
+const TOPIC_BY_ID = Object.fromEntries(allTopics.map((t) => [t.id, t]));
 export function getTopic(id) {
     return TOPIC_BY_ID[id];
 }
